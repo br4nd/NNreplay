@@ -23,9 +23,11 @@ import solvers
 
 axisLimits = [] # autoscale
 #axisLimits = [-20, 25, -5, 40]
-wpLabelList = [1,2,3,4]
+#wpLabelList = [1,2,3,4]
+wpLabelList = []
 figSize = [10,10]
 RECORD_MOVIE = True  # Easy way to turn it on/off
+#RECORD_MOVIE = False  # Easy way to turn it on/off
 PLOT_WAYPOINTS = False
 EKF_PY = False
 MOBILE_UNDER_TEST = 112
@@ -34,20 +36,17 @@ KBHIT = True
 
 def main(argv) :
 
-    pn = '/Volumes/Transcend/Data/NavNet'
-    # fn = 'Lobby_DOP_Tests/Lobby_DOP_Low_001.csv'
-    # fn = 'Lobby_DOP_Tests/Lobby_DOP_SweetSpot_000.csv'
-    # fn = 'Lobby_DOP_Tests/Lobby_DOP_Zero_002.csv'
-    # fn = 'Lobby_DOP_Tests/Lobby_DOP2_BasdSpot2_005.csv'
-    fn = 'Lobby_DOP_Tests/Lobby_DOP3_BasdSpot_001.csv'
+    pn = '/Volumes/Transcend/Data/NavNet/Lobby_DOP_Tests/'
+    #pn = '/home/brandon/Projects/Data/RangeNet'
+    #fn = 'Lobby_DOP4_BaldSpot_000_shortened.csv'
+    fn = 'Lobby_DOP4_BaldSpot_000.csv'
+    fn = 'Lobby_DOP4_BaldSpot_OnTheEdge_001.csv'
+
     ffn_in = os.path.join(pn,fn)
 
-
-#    ffn_in = '/Volumes/Transcend/Data/NavNet/Lobby_Debug_BadSpot/Lobby_Debug_BadSpot_30ms_004.csv'
-#    ffn_in = []  # uncomment this to query the user
+    #ffn_in = []  # uncomment this to query the user
     if not 'ffn_in' in locals() or not ffn_in :  # if empty
         ffn_in = lib.query_file()
-#    pdb.set_trace()
 
     [pn,fn] = os.path.split(ffn_in)
     fnNoExt = os.path.splitext(fn)[0]
@@ -91,7 +90,10 @@ def main(argv) :
             #     continue
 #            pdb.set_trace()
 
-            print '%d: %s' % (iline,line[0:-1])
+            if len(line) > 132 :
+                print '%d: %s' % (iline,line[0:131])
+            else :
+                print '%d: %s' % (iline,line[0:-1])
 #            print line[0:-1]
 
             msg = lib.parse_msg(line)
@@ -165,18 +167,6 @@ def main(argv) :
                     Tstart = rangeInfo['Timestamp']
                 Tsaved.append(rangeInfo['Timestamp']-Tstart)
 
-                # if rangeInfo['RangeStatus'] != 0 :
-                #     anchorID_buf.append(anchorID_buf[-1])
-                #     anchorLoc_buf.append(anchorLoc_buf[-1])
-
-                # Moved this to NnLocInfo for alignment in time
-                #gui.drawRangeLine(rangeInfo['RequesterID'],rangeInfo['ResponderID'],map)
-
-                # timestamp = rangeInfo['Timestamp']
-                # rMeas = rangeInfo['PrecisionRange']
-                # ree = rangeInfo['PrecisionRangeErrEst']
-                # rspLoc = map.getLoc(rangeInfo['ResponderID'])
-
             elif ('NnLocationInfo' == msg['msgType'] or 'NnEchoLastLocationExInfo' == msg['msgType'] or 'NnEchoedLocationInfo' == msg['msgType']) and MOBILE_UNDER_TEST == msg['NodeID'] :
                 locInfo = msg
                 print '   SolverStage(%d), SolverError(%d), x(%.3f), y(%.3f), DOP(%.3f), nAnchors(%d), xvar(%.5f), yvar(%.5f), xycov(%.5f)' %\
@@ -190,20 +180,16 @@ def main(argv) :
                 if locInfo['SolverStage'] == 0 :
                     mobColor = 'red'
                 elif locInfo['SolverStage'] == 1 :
-                    mobColor = 'orange'
+                    mobColor = 'gold'
                 elif locInfo['SolverStage'] == 2 :
                     mobColor = 'blue'
                 elif locInfo['SolverStage'] == 3 :
                     mobColor = 'green'
                 else :
                     pdb.set_trace()
-                #    mobColor = 'gray'
-
-                # if rangeInfo['PrecisionRangeErrEst'] == .056 :
-                #     pdb.set_trace()
 
                 # Update anchor buffer for GDOP
-                if rangeInfo['PrecisionRangeErrEst'] < 0.056 :
+                if rangeInfo['PrecisionRangeErrEst'] < 0.1 :
                     ancID = rangeInfo['ResponderID']
                 else :
                     ancID = ancID_buf[-1]
@@ -229,15 +215,12 @@ def main(argv) :
                         % (doppy,nApy,ancID_buf[0],ancID_buf[1],ancID_buf[2],ancID_buf[3])
                 doppy_saved.append((locInfo['MessageID'],doppy,nApy))
 
-                if debugMsg['dbgMsgType'] == 'KS2dM' :
-                    innovation = debugMsg['range'] - debugMsg['predictedRange']
-                    innovation_saved.append((locInfo['MessageID'], innovation))
-
                 #pdb.set_trace()
-                label = '  node%d: stage:%d, err:%d,\n  dop:  % 5.2f, nA:  %d,\n  doppy:% 4.2f, nApy:%d,\n  A[%d,%d,%d,%d],\n  rspID:%d, rng:%5.3f, ree:%d'\
+                label = '  node%d: stage:%d, err:%d,\n  dop:  % 5.2f, nA:  %d,\n  doppy:% 4.2f, nApy:%d,\n  A[%s],\n  Apy[%d,%d,%d,%d],\n  rspID:%d, rng:%5.3f, ree:%d'\
                     % (locInfo['NodeID'],locInfo['SolverStage'],locInfo['SolverError'],
                     locInfo['DOP'], locInfo['NumAnchors'], doppy, nApy,
-                    ancID_buf[0], ancID_buf[1], ancID_buf[2], ancID_buf[3],
+                    anchor_list,
+                    ancID_buf[3], ancID_buf[2], ancID_buf[1], ancID_buf[0],
                     rangeInfo['ResponderID'], rangeInfo['PrecisionRange'],int(1000*rangeInfo['PrecisionRangeErrEst']))
 
                 P = np.array([[locInfo['XVariance'], locInfo['XYCovariance']],
@@ -294,7 +277,7 @@ def main(argv) :
                 # if STEP :
                 #     pdb.set_trace()
 
-                # if 6915 <= locInfo['MessageID'] :
+                # if 11144 <= locInfo['MessageID'] :
                 #     pdb.set_trace()
 
                 if gameInfo :
@@ -303,7 +286,43 @@ def main(argv) :
 
             elif 'RcmInternalDebugInfo' == msg['msgType'] :
                 debugMsg = msg
-                pass
+                #pdb.set_trace()
+
+                if debugMsg['Text'][:5] == ' GDOP' :
+                    anchor_list = debugMsg['Text'][-16:-1]
+
+                elif debugMsg['Text'][:5] == ' KS2dM' :
+                    # innovation = debugMsg['range'] - debugMsg['predictedRange']
+                    # innovation_saved.append((locInfo['MessageID'], innovation))
+                    pdb.set_trace()
+                    pass
+
+                    # if ' KS2dM' == msglist[5] :
+                    #     #KS2dM, range, predictedRange, previousState[0], previousState[1], previousState[2],
+                    #     #previousState[3], anchorX, anchorY, anchorZ, timeDelta, m_localZHeight, reportedRangeErr,
+                    #     #sigmaAccel, state[0], state[1], state[2], state[3], covariance(0, 0), covariance(1, 1),
+                    #     #covariance(2, 2), covariance(3, 3), K[0], K[1], K[2], K[3]
+                    #     msg['dbgMsgType'] = 'KS2dM'
+                    #     therest = dict([('range',float(msglist[6])),
+                    #             ('predictedRange',float(msglist[7])),
+                    #             ('previousState',[float(msglist[8]),float(msglist[9]),float(msglist[10]), float(msglist[11])]),
+                    #             ('anchorLoc',[ float(msglist[12]), float(msglist[13]), float(msglist[14]) ]),
+                    #             ('timeDelta',float(msglist[15])),
+                    #             ('m_localZHeight',float(msglist[16])),
+                    #             ('reportedRangeErr',float(msglist[17])),
+                    #             ('sigmaAccel',float(msglist[18])),
+                    #             ('state',[float(msglist[19]),float(msglist[21]),float(msglist[22]),float(msglist[23])]),
+                    #             ('covariance00',float(msglist[23])),
+                    #             ('covariance11',float(msglist[24])),
+                    #             ('covariance22',float(msglist[25])),
+                    #             ('covariance33',float(msglist[26])),
+                    #             ('K',[float(msglist[27]),float(msglist[28]),float(msglist[20]),float(msglist[30])]),
+                    #             ])
+                    #     msg.update(therest)
+                    # else :
+                    #     msg['dbgMsgType'] = 'MiscText'
+                    #     msg['Text'] = ''.join(msglist[5:])
+
 
             elif 'GameConfig' == msg['msgType'] :
                 gameInfo = msg
@@ -357,14 +376,12 @@ def main(argv) :
             if KBHIT :
                 if kb.kbhit():
                     c = kb.getch()
+                    print c
                     kb.set_normal_term()
                     break
 
-            # if STEP == True:
-            #     break
-
-            if iline > 1000 :
-                pass
+            # if iline > 1000 :
+            #     pass
                 #break
 
             # if msg :
