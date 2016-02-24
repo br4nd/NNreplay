@@ -36,7 +36,7 @@ KBHIT = True
 
 def main(argv) :
 
-    pn = '/Volumes/Transcend/Data/NavNet/Lobby_DOP_Tests/'
+    pn = '/Volumes/Transcend/Data/RangeNet/Lobby_DOP_Tests/'
     #pn = '/home/brandon/Projects/Data/RangeNet'
     #fn = 'Lobby_DOP4_BaldSpot_000_shortened.csv'
     fn = 'Lobby_DOP4_BaldSpot_000.csv'
